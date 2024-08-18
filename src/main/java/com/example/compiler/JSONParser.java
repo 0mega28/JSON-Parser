@@ -12,7 +12,7 @@ import java.util.*;
 public class JSONParser {
     private int pos;
     private final String input;
-    Stack<Object> stack = new Stack<>();
+    private final Stack<Object> stack = new Stack<>();
 
     private JSONParser(String input) {
         this.input = input;
@@ -25,12 +25,11 @@ public class JSONParser {
         else return null;
     }
 
-    private boolean skipWhitespace() {
+    private void skipWhitespace() {
         while (pos < input.length() &&
                Character.isWhitespace(input.charAt(pos))) {
             pos++;
         }
-        return true;
     }
 
     private boolean parseStringLit() {
@@ -140,38 +139,39 @@ public class JSONParser {
         return true;
     }
 
-    private boolean parsePairs() {
-        if (!parsePair()) {
-            return true;
-        }
-
+    private void parsePairsTails() {
         while (true) {
             int pos0 = pos;
             boolean success = parseChar(',') &&
                               parsePair();
             if (!success) {
                 pos = pos0;
-                return true;
+                return;
             }
         }
     }
 
-    private boolean parseValues() {
-        if (!parseValue()) {
-            return true;
-        }
+    private boolean parsePairs() {
+        if (parsePair()) parsePairsTails();
+        return true;
+    }
 
+    private boolean parseValues() {
+        if (parseValue()) parseValueTails();
+        return true;
+    }
+
+    private void parseValueTails() {
         while (true) {
             int pos0 = pos;
             boolean success = parseChar(',') &&
                               parseValue();
             if (!success) {
                 pos = pos0;
-                return true;
+                return;
             }
         }
     }
-
 
     private boolean parseArray() {
         int pos0 = pos;
