@@ -89,7 +89,13 @@ public class JSONRecognizer {
 
     private boolean parseObject() {
         int currPos = pos;
-        boolean success = parseChar('{') && parsePairs() && parseChar('}');
+        boolean success = skipWhitespace() &&
+                          parseChar('{') &&
+                          skipWhitespace() &&
+                          parsePairs() &&
+                          skipWhitespace() &&
+                          parseChar('}') &&
+                          skipWhitespace();
         if (!success) {
             pos = currPos;
             return false;
@@ -99,7 +105,11 @@ public class JSONRecognizer {
 
     private boolean parsePair() {
         int currPos = pos;
-        boolean success = parseStringLit() && parseChar(':') && parseValue();
+        boolean success = parseStringLit() &&
+                          skipWhitespace() &&
+                          parseChar(':') &&
+                          skipWhitespace() &&
+                          parseValue();
         if (!success) {
             pos = currPos;
             return false;
@@ -114,7 +124,11 @@ public class JSONRecognizer {
 
         while (true) {
             int currPos = pos;
-            boolean success = parseChar(',') && parsePair();
+            boolean success = skipWhitespace() &&
+                              parseChar(',') &&
+                              skipWhitespace() &&
+                              parsePair() &&
+                              skipWhitespace();
             if (!success) {
                 pos = currPos;
                 return true;
@@ -129,7 +143,11 @@ public class JSONRecognizer {
 
         while (true) {
             int currPos = pos;
-            boolean success = parseChar(',') && parseValue();
+            boolean success = skipWhitespace() &&
+                              parseChar(',') &&
+                              skipWhitespace() &&
+                              parseValue() &&
+                              skipWhitespace();
             if (!success) {
                 pos = currPos;
                 return true;
@@ -141,7 +159,13 @@ public class JSONRecognizer {
     private boolean parseArray() {
         int currPos = pos;
 
-        boolean success = parseChar('[') && parseValues() && parseChar(']');
+        boolean success = skipWhitespace() &&
+                          parseChar('[') &&
+                          skipWhitespace() &&
+                          parseValues() &&
+                          skipWhitespace() &&
+                          parseChar(']') &&
+                          skipWhitespace();
         if (!success) {
             pos = currPos;
             return false;
