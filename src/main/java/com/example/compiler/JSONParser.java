@@ -9,18 +9,18 @@ import java.util.*;
     PAIR = STRING-LIT ":" VALUE
     ARRAY = "[" ( VALUE (, VALUE)* )? "]"
 */
-public class JSONRecognizer {
+public class JSONParser {
     private int pos;
     private final String input;
     Stack<Object> stack = new Stack<>();
 
-    private JSONRecognizer(String input) {
+    private JSONParser(String input) {
         this.input = input;
         pos = 0;
     }
 
-    public static Object recognize(String input) {
-        JSONRecognizer recognizer = new JSONRecognizer(input);
+    public static Object parse(String input) {
+        JSONParser recognizer = new JSONParser(input);
         if (recognizer.parseValue()) return recognizer.stack.pop();
         else return null;
     }

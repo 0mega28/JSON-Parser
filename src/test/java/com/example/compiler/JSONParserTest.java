@@ -8,9 +8,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class JSONRecognizerTest {
+class JSONParserTest {
     @Test
-    void recognizeCorrectWithoutSpace() {
+    void parseCorrectWithoutSpace() {
         final String input = """
                 {"metadata":{"created":"1600"},"data":[{"key":"value","true":true,"false":false,"number":2019,"null":null,"array":[],"object":{}},{}]}""";
 
@@ -29,11 +29,11 @@ class JSONRecognizerTest {
                         Map.of()
                 )
         );
-        assertEquals(expected, JSONRecognizer.recognize(input));
+        assertEquals(expected, JSONParser.parse(input));
     }
 
     @Test
-    void recognizeCorrectWithSpace() {
+    void parseCorrectWithSpace() {
         final String input = """
                 {
                   "metadata": {
@@ -68,14 +68,14 @@ class JSONRecognizerTest {
                         Map.of()
                 )
         );
-        assertEquals(expected, JSONRecognizer.recognize(input));
+        assertEquals(expected, JSONParser.parse(input));
     }
 
     @Test
-    void recognizeInCorrect() {
+    void parseInCorrect() {
         final String input = """
                 {"metadata""created":"1600"},"data":[{"key":"value","true":true,"false":false,"number":2019,"null":null,"array":[],"object":{}},{}]}""";
 
-        assertNull(JSONRecognizer.recognize(input));
+        assertNull(JSONParser.parse(input));
     }
 }
