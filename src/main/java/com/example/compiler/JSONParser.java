@@ -34,6 +34,7 @@ public class JSONParser {
     }
 
     private boolean parseStringLit() {
+        skipWhitespace();
         if (input.charAt(pos) != '"') return false;
         int endQuote = input.indexOf('"', pos + 1);
         if (endQuote == -1) return false;
@@ -43,6 +44,7 @@ public class JSONParser {
     }
 
     private boolean parseNumber() {
+        skipWhitespace();
         int pos0 = pos;
         while (pos < input.length() &&
                Character.isDigit(input.charAt(pos))) {
@@ -56,6 +58,7 @@ public class JSONParser {
     }
 
     private boolean parseNull() {
+        skipWhitespace();
         String aNull = "null";
         if (input.startsWith(aNull, pos)) {
             pos += aNull.length();
@@ -66,6 +69,7 @@ public class JSONParser {
     }
 
     private boolean parseTrue() {
+        skipWhitespace();
         String aTrue = "true";
         if (input.startsWith(aTrue, pos)) {
             pos += aTrue.length();
@@ -76,6 +80,7 @@ public class JSONParser {
     }
 
     private boolean parseFalse() {
+        skipWhitespace();
         String aFalse = "false";
         if (input.startsWith(aFalse, pos)) {
             pos += aFalse.length();
@@ -92,6 +97,7 @@ public class JSONParser {
     }
 
     private boolean parseChar(char ch) {
+        skipWhitespace();
         if (input.charAt(pos) == ch) {
             pos++;
             return true;
@@ -102,13 +108,10 @@ public class JSONParser {
     private boolean parseObject() {
         int pos0 = pos;
         int stackSize0 = stack.size();
-        boolean success = skipWhitespace() &&
-                          parseChar('{') &&
-                          skipWhitespace() &&
+        boolean success = parseChar('{') &&
                           parsePairs() &&
-                          skipWhitespace() &&
-                          parseChar('}') &&
-                          skipWhitespace();
+                          parseChar('}');
+
         if (!success) {
             pos = pos0;
             return false;
@@ -128,9 +131,7 @@ public class JSONParser {
     private boolean parsePair() {
         int pos0 = pos;
         boolean success = parseStringLit() &&
-                          skipWhitespace() &&
                           parseChar(':') &&
-                          skipWhitespace() &&
                           parseValue();
         if (!success) {
             pos = pos0;
@@ -146,11 +147,8 @@ public class JSONParser {
 
         while (true) {
             int pos0 = pos;
-            boolean success = skipWhitespace() &&
-                              parseChar(',') &&
-                              skipWhitespace() &&
-                              parsePair() &&
-                              skipWhitespace();
+            boolean success = parseChar(',') &&
+                              parsePair();
             if (!success) {
                 pos = pos0;
                 return true;
@@ -165,11 +163,8 @@ public class JSONParser {
 
         while (true) {
             int pos0 = pos;
-            boolean success = skipWhitespace() &&
-                              parseChar(',') &&
-                              skipWhitespace() &&
-                              parseValue() &&
-                              skipWhitespace();
+            boolean success = parseChar(',') &&
+                              parseValue();
             if (!success) {
                 pos = pos0;
                 return true;
@@ -182,13 +177,9 @@ public class JSONParser {
         int pos0 = pos;
         int stackSize0 = stack.size();
 
-        boolean success = skipWhitespace() &&
-                          parseChar('[') &&
-                          skipWhitespace() &&
+        boolean success = parseChar('[') &&
                           parseValues() &&
-                          skipWhitespace() &&
-                          parseChar(']') &&
-                          skipWhitespace();
+                          parseChar(']');
         if (!success) {
             pos = pos0;
             return false;
