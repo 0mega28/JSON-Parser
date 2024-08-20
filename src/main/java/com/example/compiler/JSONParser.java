@@ -1,6 +1,7 @@
 package com.example.compiler;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 /*
     Syntax
@@ -20,8 +21,8 @@ public class JSONParser {
     }
 
     public static Object parse(String input) {
-        JSONParser recognizer = new JSONParser(input);
-        if (recognizer.parseValue()) return recognizer.stack.pop();
+        JSONParser parser = new JSONParser(input);
+        if (parser.valueParser.parse()) return parser.stack.pop();
         else return null;
     }
 
@@ -30,6 +31,15 @@ public class JSONParser {
                Character.isWhitespace(input.charAt(pos))) {
             pos++;
         }
+    }
+
+    private boolean parseChar(char ch) {
+        skipWhitespace();
+        if (input.charAt(pos) == ch) {
+            pos++;
+            return true;
+        }
+        return false;
     }
 
     private boolean parseStringLit() {
@@ -56,143 +66,231 @@ public class JSONParser {
         return true;
     }
 
-    private boolean parseNull() {
-        skipWhitespace();
-        String aNull = "null";
-        if (input.startsWith(aNull, pos)) {
-            pos += aNull.length();
-            stack.push(null);
-            return true;
-        }
-        return false;
+    interface Parser {
+        boolean parse();
     }
 
-    private boolean parseTrue() {
-        skipWhitespace();
-        String aTrue = "true";
-        if (input.startsWith(aTrue, pos)) {
-            pos += aTrue.length();
-            stack.push(true);
-            return true;
-        }
-        return false;
-    }
+    private class CharParser implements Parser {
+        private final char c;
 
-    private boolean parseFalse() {
-        skipWhitespace();
-        String aFalse = "false";
-        if (input.startsWith(aFalse, pos)) {
-            pos += aFalse.length();
-            stack.push(false);
-            return true;
-        }
-        return false;
-    }
-
-    private boolean parseValue() {
-        return parseStringLit() || parseNumber() || parseNull() ||
-               parseTrue() || parseFalse() ||
-               parseObject() || parseArray();
-    }
-
-    private boolean parseChar(char ch) {
-        skipWhitespace();
-        if (input.charAt(pos) == ch) {
-            pos++;
-            return true;
-        }
-        return false;
-    }
-
-    private boolean parseObject() {
-        int pos0 = pos;
-        int stackSize0 = stack.size();
-        boolean success = parseChar('{') &&
-                          parsePairs() &&
-                          parseChar('}');
-
-        if (!success) {
-            pos = pos0;
-            return false;
+        CharParser(char c) {
+            this.c = c;
         }
 
-        HashMap<String, Object> object = new HashMap<>();
-        while (stack.size() > stackSize0) {
-            Object value = stack.pop();
-            String key = (String) stack.pop();
-            object.put(key, value);
+        @Override
+        public boolean parse() {
+            return parseChar(c);
         }
-        stack.push(object);
-
-        return true;
     }
 
-    private boolean parsePair() {
-        int pos0 = pos;
-        boolean success = parseStringLit() &&
-                          parseChar(':') &&
-                          parseValue();
-        if (!success) {
-            pos = pos0;
-            return false;
+    private class NumberParser implements Parser {
+
+        @Override
+        public boolean parse() {
+            return parseNumber();
         }
-        return true;
     }
 
-    private void parsePairsTails() {
-        while (true) {
-            int pos0 = pos;
-            boolean success = parseChar(',') &&
-                              parsePair();
-            if (!success) {
-                pos = pos0;
-                return;
+    private class StringLitParser implements Parser {
+
+        @Override
+        public boolean parse() {
+            return parseStringLit();
+        }
+    }
+
+    private class StringParser implements Parser {
+        private final String toParse;
+        private final Object value;
+
+        StringParser(String toParse, Object value) {
+            this.toParse = toParse;
+            this.value = value;
+        }
+
+        @Override
+        public boolean parse() {
+            skipWhitespace();
+            if (input.startsWith(toParse, pos)) {
+                pos += toParse.length();
+                stack.push(value);
+                return true;
             }
-        }
-    }
 
-    private boolean parsePairs() {
-        if (parsePair()) parsePairsTails();
-        return true;
-    }
-
-    private boolean parseValues() {
-        if (parseValue()) parseValueTails();
-        return true;
-    }
-
-    private void parseValueTails() {
-        while (true) {
-            int pos0 = pos;
-            boolean success = parseChar(',') &&
-                              parseValue();
-            if (!success) {
-                pos = pos0;
-                return;
-            }
-        }
-    }
-
-    private boolean parseArray() {
-        int pos0 = pos;
-        int stackSize0 = stack.size();
-
-        boolean success = parseChar('[') &&
-                          parseValues() &&
-                          parseChar(']');
-        if (!success) {
-            pos = pos0;
             return false;
         }
-
-        ArrayList<Object> array = new ArrayList<>();
-        while (stack.size() > stackSize0) {
-            array.add(stack.pop());
-        }
-        Collections.reverse(array);
-        stack.push(array);
-
-        return true;
     }
 
+    private class Sequence implements Parser {
+        private final Parser[] parsers;
+
+        Sequence(Parser... parsers) {
+            this.parsers = parsers;
+        }
+
+        @Override
+        public boolean parse() {
+            int pos0 = pos;
+            for (Parser parser : parsers) {
+                boolean success = parser.parse();
+                if (!success) {
+                    pos = pos0;
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    private class Separated implements Parser {
+        private final Parser parser;
+        private final CharParser separatorParser;
+
+        Separated(char separator, Parser parser) {
+            this.separatorParser = new CharParser(separator);
+            this.parser = parser;
+        }
+
+        @Override
+        public boolean parse() {
+            if (parser.parse()) {
+                while (true) {
+                    int pos0 = pos;
+                    boolean success = separatorParser.parse() && parser.parse();
+                    if (!success) {
+                        pos = pos0;
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+
+    private class Optional implements Parser {
+        private final Parser parser;
+
+        Optional(Parser parser) {
+            this.parser = parser;
+        }
+
+        @Override
+        public boolean parse() {
+            parser.parse();
+            return true;
+        }
+    }
+
+    private class Either implements Parser {
+        private final Parser[] parsers;
+
+        Either(Parser... parsers) {
+            this.parsers = parsers;
+        }
+
+
+        @Override
+        public boolean parse() {
+            for (Parser parser : parsers) {
+                if (parser.parse()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    private class ForwardRef implements Parser {
+        private final Supplier<Parser> parserSupplier;
+
+        ForwardRef(Supplier<Parser> parserSupplier) {
+            this.parserSupplier = parserSupplier;
+        }
+
+        public boolean parse() {
+            return parserSupplier.get().parse();
+        }
+    }
+
+    private class ComposeObject implements Parser {
+        private final Parser parser;
+
+        public ComposeObject(Parser parser) {
+            this.parser = parser;
+        }
+
+        @Override
+        public boolean parse() {
+            int stackSize0 = stack.size();
+            if (!parser.parse()) return false;
+
+            HashMap<String, Object> object = new HashMap<>();
+            while (stack.size() > stackSize0) {
+                Object value = stack.pop();
+                String key = (String) stack.pop();
+                object.put(key, value);
+            }
+            stack.push(object);
+
+            return true;
+        }
+    }
+
+    private class ComposeArray implements Parser {
+        private final Parser parser;
+
+        public ComposeArray(Parser parser) {
+            this.parser = parser;
+        }
+
+        @Override
+        public boolean parse() {
+            int stackSize0 = stack.size();
+            if (!parser.parse()) return false;
+
+            ArrayList<Object> array = new ArrayList<>();
+            while (stack.size() > stackSize0) {
+                array.add(stack.pop());
+            }
+            Collections.reverse(array);
+            stack.push(array);
+
+            return true;
+        }
+    }
+
+
+    private final Parser nullParser = new StringParser("null", null);
+    private final Parser trueParser = new StringParser("true", true);
+    private final Parser falseParser = new StringParser("false", false);
+    private final Parser stringLitParser = new StringLitParser();
+    private final Parser numberParser = new NumberParser();
+    private final Parser valueParser = new Either(
+            stringLitParser, numberParser,
+            nullParser, trueParser, falseParser,
+            new ForwardRef(() -> this.objectParser),
+            new ForwardRef(() -> this.arrayParser)
+    );
+    private final Parser pairParser = new Sequence(
+            stringLitParser,
+            new CharParser(':'),
+            valueParser
+    );
+    private final Parser objectParser = new ComposeObject(
+            new Sequence(
+                    new CharParser('{'),
+                    new Optional(
+                            new Separated(',', pairParser)
+                    ),
+                    new CharParser('}')
+            ));
+    private final Parser arrayParser = new ComposeArray(
+            new Sequence(
+                    new CharParser('['),
+                    new Optional(
+                            new Separated(',', valueParser)
+                    ),
+                    new CharParser(']')
+            ));
 }
