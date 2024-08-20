@@ -35,6 +35,7 @@ public class JSONParser {
 
     private boolean parseChar(char ch) {
         skipWhitespace();
+        if (pos >= input.length()) return false;
         if (input.charAt(pos) == ch) {
             pos++;
             return true;
